@@ -3,6 +3,7 @@ const helmet = require("helmet");
 const cors = require("helmet");
 
 const services = require("./services");
+const db = require("./utils/db");
 
 const {
   badRequestErrorHandler,
@@ -28,10 +29,13 @@ server.use(forbiddenErrorHandler);
 server.use(unauthorizedErrorHandler);
 server.use(catchAllErrorHandler);
 
-server.listen(port, () => {
-  console.info("Server is running on port: ", port);
-});
-
-server.on("error", (err) => {
-  console.error("Error : server is not running: ", err);
-});
+db.sequelize
+  .sync({ force: false })
+  .then((res) => {
+    server.listen(port, () => {
+      console.info("Server is running on port: ", port);
+    });
+  })
+  .catch((err) => {
+    console.error("Error : server is not running: ", err);
+  });

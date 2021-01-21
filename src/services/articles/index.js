@@ -1,117 +1,133 @@
 const router = require("express").Router();
+const Article = require("../../utils/db").Article;
+const Author = require("../../utils/db").Author;
+const Category = require("../../utils/db").Category;
+const Review = require("../../utils/db").Review;
+const { Op } = require("sequelize");
 
-const Model = require("../../utils/model");
-const db = require("../../utils/db");
+router
+  .route("/")
+  .get(async (req, res, next) => {
+    try {
+      const data = await Article.findAll({
+        include: [
+          {
+            model: Category,
+            attributes: ["name", "img"],
+            where: req.query.categories
+              ? {
+                  name: { [Op.iLike]: "%" + req.query.categories + "%" },
+                }
+              : {},
+          },
+          {
+            model: Author,
+            attributes: ["name", "img", "email"],
+            where: req.query.author
+              ? {
+                  name: { [Op.iLike]: "%" + req.query.author + "%" },
+                }
+              : {},
+          },
+          {
+            model: Review,
+            include: [{ model: Author, attributes: ["name", "img", "email"] }],
+            attributes: ["text", "isClapped"],
+          },
+        ],
+        attributes: ["id", "headLine", "subHead", "content"],
 
-const Articles = new Model("articles");
-
-router.get("/articles-authors-category", async (req, res, next) => {
-  try {
-    const query = `SELECT a.headline AS article_headline, a.subhead AS article_subhead ,a.content AS article_content, au.name AS author_name ,
-                    c.name AS article_category FROM articles AS a INNER JOIN authors AS au ON a.authorid = au.id INNER JOIN categories AS c ON
-                    a.categoryid = c.id `;
-    const { rows } = await db.query(query);
-    res.status(200).send(rows);
-  } catch (error) {
-    console.log(error);
-    next(error);
-  }
-});
-
-router.get("/", async (req, res, next) => {
-  try {
-    if (req.query) {
-      const { rows } = await Articles.find(req.query);
-      res.status(200).send(rows);
-    } else {
-      const { rows } = await Articles.find();
-      res.status(200).send(rows);
+        where:
+          req.query.headLine || req.query.content
+            ? {
+                [Op.or]: [
+                  req.query.headLine
+                    ? {
+                        headLine: {
+                          [Op.iLike]: "%" + req.query.headLine + "%",
+                        },
+                      }
+                    : {},
+                  req.query.content
+                    ? { content: { [Op.iLike]: "%" + req.query.content + "%" } }
+                    : {},
+                ],
+              }
+            : {},
+        offset: parseInt(req.query.offset) | 0,
+        limit: parseInt(req.query.limit) | 10,
+      });
+      res.status(200).send(data);
+    } catch (error) {
+      console.log(error);
+      next(error);
     }
-  } catch (error) {
-    console.log(error);
-    next(error);
-  }
-});
-
-router.get("/OR", async (req, res, next) => {
-  try {
-    if (req.query) {
-      const { rows } = await Articles.find(req.query, "OR");
-      res.status(200).send(rows);
-    } else {
-      const { rows } = await Articles.find();
-      res.status(200).send(rows);
+  })
+  .post(async (req, res, next) => {
+    try {
+      const newEntry = await Article.create(req.body);
+      res.status(201).send(newEntry);
+    } catch (error) {
+      console.log(error);
+      next(error);
     }
-  } catch (error) {
-    console.log(error);
-    next(error);
-  }
-});
-
-router.get("/:id", async (req, res, next) => {
-  try {
-    if (req.body.fields && req.body.fields.length > 0) {
-      const { rows } = await Articles.findById(req.params.id, req.body.fields);
-
-      if (rows.length === 0) {
+  });
+router
+  .route("/:id")
+  .get(async (req, res, next) => {
+    try {
+      const data = await Article.findByPk(req.params.id);
+      if (data) {
+        res.status(200).send(data);
+      } else {
         const err = new Error();
-        err.message = `Article Id: ${req.params.id} not found`;
+        err.message = `Article id: ${req.params.id} not found!`;
         err.httpStatusCode = 404;
         next(err);
-      } else {
-        res.status(200).send(rows);
       }
-    } else {
-      const { rows } = await Articles.findById(req.params.id);
-      if (rows.length === 0) {
+    } catch (error) {
+      console.log(error);
+      next(error);
+    }
+  })
+  .put(async (req, res, next) => {
+    try {
+      const updateArticle = await Article.update(req.body, {
+        returning: true,
+        // plain: true,
+        where: {
+          id: req.params.id,
+        },
+      });
+      if (updateArticle[1].length > 0) {
+        res.status(200).send(updateArticle);
+      } else {
         const err = new Error();
-        err.message = `Article Id: ${req.params.id} not found`;
+        err.message = `Article id: ${req.params.id} not found!`;
         err.httpStatusCode = 404;
         next(err);
-      } else {
-        res.status(200).send(rows);
       }
+    } catch (error) {
+      console.log(error);
+      next(error);
     }
-  } catch (error) {
-    console.log(error);
-    next(error);
-  }
-});
-
-router.post("/", async (req, res, next) => {
-  try {
-    const response = await Articles.save(req.body);
-    res.status(201).send(response);
-  } catch (error) {
-    console.log(error);
-    next(error);
-  }
-});
-
-router.put("/:id", async (req, res, next) => {
-  try {
-    const response = await Articles.findByIdAndUpdate(req.params.id, req.body);
-    if (response.rowCount === 0) {
-      const err = new Error();
-      err.message = `Article Id: ${req.params.id} not found`;
-      err.httpStatusCode = 404;
-      next(err);
-    } else {
-      res.status(200).send(response);
+  })
+  .delete(async (req, res, next) => {
+    try {
+      const deletedProduct = await Article.destroy({
+        where: { id: req.params.id },
+      });
+      if (deletedProduct === 1) {
+        res.status(203).send("Product is deleted");
+      } else {
+        const err = new Error();
+        err.message = `Article id: ${req.params.id} not found!`;
+        err.httpStatusCode = 404;
+        next(err);
+      }
+    } catch (error) {
+      console.log(error);
+      next(error);
     }
-  } catch (error) {
-    console.log(error);
-    next(error);
-  }
-});
-
-router.delete("/:id", async (req, res, next) => {
-  try {
-    const { rows } = await Articles.findByIdAndDelete(req.params.id);
-    res.status(203).send(rows);
-  } catch (error) {
-    console.log(error);
-    next(error);
-  }
-});
+  });
 module.exports = router;

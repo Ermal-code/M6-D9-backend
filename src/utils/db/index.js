@@ -3,6 +3,7 @@ const Article = require("./article");
 const Author = require("./author");
 const Category = require("./category");
 const Review = require("./review");
+const ArticleCategory = require("./articleCategory");
 
 const sequelize = new Sequelize(
   process.env.PGDATABASE,
@@ -19,6 +20,7 @@ const models = {
   Author: Author(sequelize, DataTypes),
   Category: Category(sequelize, DataTypes),
   Review: Review(sequelize, DataTypes),
+  ArticleCategory: ArticleCategory(sequelize, DataTypes),
 };
 
 Object.keys(models).forEach((modelName) => {
@@ -34,3 +36,5 @@ sequelize
   .authenticate()
   .then(() => console.log("Connection established"))
   .catch((e) => console.log("Connection failed ", e));
+
+module.exports = models;

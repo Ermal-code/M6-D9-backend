@@ -1,94 +1,82 @@
 const router = require("express").Router();
+const Category = require("../../utils/db").Category;
 
-const Model = require("../../utils/model");
-
-const Categories = new Model("categories");
-
-router.get("/", async (req, res, next) => {
-  try {
-    if (req.query) {
-      const { rows } = await Categories.find(req.query);
-      res.status(200).send(rows);
-    } else {
-      const { rows } = await Categories.find();
-      res.status(200).send(rows);
+router
+  .route("/")
+  .get(async (req, res, next) => {
+    try {
+      const data = await Category.findAll();
+      res.status(200).send(data);
+    } catch (error) {
+      console.log(error);
+      next(error);
     }
-  } catch (error) {
-    console.log(error);
-    next(error);
-  }
-});
-
-router.get("/:id", async (req, res, next) => {
-  try {
-    if (req.body.fields && req.body.fields.length > 0) {
-      const { rows } = await Categories.findById(
-        req.params.id,
-        req.body.fields
-      );
-
-      if (rows.length === 0) {
+  })
+  .post(async (req, res, next) => {
+    try {
+      const newEntry = await Category.create(req.body);
+      res.status(201).send(newEntry);
+    } catch (error) {
+      console.log(error);
+      next(error);
+    }
+  });
+router
+  .route("/:id")
+  .get(async (req, res, next) => {
+    try {
+      const data = await Category.findByPk(req.params.id);
+      if (data) {
+        res.status(200).send(data);
+      } else {
         const err = new Error();
-        err.message = `Category Id: ${req.params.id} not found`;
+        err.message = `Category id: ${req.params.id} not found!`;
         err.httpStatusCode = 404;
         next(err);
-      } else {
-        res.status(200).send(rows);
       }
-    } else {
-      const { rows } = await Categories.findById(req.params.id);
-      if (rows.length === 0) {
+    } catch (error) {
+      console.log(error);
+      next(error);
+    }
+  })
+  .put(async (req, res, next) => {
+    try {
+      const updateCategory = await Category.update(req.body, {
+        returning: true,
+        // plain: true,
+        where: {
+          id: req.params.id,
+        },
+      });
+      if (updateCategory[1].length > 0) {
+        res.status(200).send(updateCategory);
+      } else {
         const err = new Error();
-        err.message = `Category Id: ${req.params.id} not found`;
+        err.message = `Category id: ${req.params.id} not found!`;
         err.httpStatusCode = 404;
         next(err);
-      } else {
-        res.status(200).send(rows);
       }
+    } catch (error) {
+      console.log(error);
+      next(error);
     }
-  } catch (error) {
-    console.log(error);
-    next(error);
-  }
-});
-
-router.post("/", async (req, res, next) => {
-  try {
-    const response = await Categories.save(req.body);
-    res.status(201).send(response);
-  } catch (error) {
-    console.log(error);
-    next(error);
-  }
-});
-
-router.put("/:id", async (req, res, next) => {
-  try {
-    const response = await Categories.findByIdAndUpdate(
-      req.params.id,
-      req.body
-    );
-    if (response.rowCount === 0) {
-      const err = new Error();
-      err.message = `Category Id: ${req.params.id} not found`;
-      err.httpStatusCode = 404;
-      next(err);
-    } else {
-      res.status(200).send(response);
+  })
+  .delete(async (req, res, next) => {
+    try {
+      const deletedProduct = await Category.destroy({
+        where: { id: req.params.id },
+      });
+      if (deletedProduct === 1) {
+        res.status(203).send("Product is deleted");
+      } else {
+        const err = new Error();
+        err.message = `Category id: ${req.params.id} not found!`;
+        err.httpStatusCode = 404;
+        next(err);
+      }
+    } catch (error) {
+      console.log(error);
+      next(error);
     }
-  } catch (error) {
-    console.log(error);
-    next(error);
-  }
-});
-
-router.delete("/:id", async (req, res, next) => {
-  try {
-    const { rows } = await Categories.findByIdAndDelete(req.params.id);
-    res.status(203).send(rows);
-  } catch (error) {
-    console.log(error);
-    next(error);
-  }
-});
+  });
 module.exports = router;

@@ -1,5 +1,3 @@
-const { Sequelize, DataTypes } = require("sequelize/types");
-
 module.exports = (sequelize, DataTypes) => {
   const Article = sequelize.define("article", {
     id: {
@@ -22,6 +20,12 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   Article.associate = (models) => {
-    Article.belongsTo(models.Category);
+    Article.hasMany(models.ArticleCategory);
+    Article.belongsTo(models.Author);
+    Article.hasMany(models.Review);
+    Article.belongsToMany(models.Category, {
+      through: { model: models.ArticleCategory, unique: false },
+    });
   };
+  return Article;
 };
